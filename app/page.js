@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import VideoList from './components/VideoList'; // Přidáme import
+import VideoList from './components/VideoList'; // Ujisti se, že máš komponentu VideoList
 
 export default function Home() {
   const [channelUrl, setChannelUrl] = useState('');
+  const [topic, setTopic] = useState(''); // Nový stav pro téma
   const [titles, setTitles] = useState([]);
   const [generatedTitles, setGeneratedTitles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ titles }),
+        body: JSON.stringify({ titles, topic }), // Odesílání tématu s tituly
       });
       const data = await response.json();
       setGeneratedTitles(data);
@@ -63,6 +64,20 @@ export default function Home() {
             onChange={(e) => setChannelUrl(e.target.value)}
           />
         </div>
+        
+        <div className="form-control mb-4"> {/* Nové pole pro zadání tématu */}
+          <label className="label">
+            <span className="label-text">Enter Topic for the Video</span>
+          </label>
+          <input
+            type="text"
+            placeholder="e.g., How to increase sales"
+            className="input input-bordered w-full"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+          />
+        </div>
+
         <div className="flex space-x-4">
           <button
             className={`btn btn-primary ${loading ? 'loading' : ''}`}
@@ -74,7 +89,7 @@ export default function Home() {
           <button
             className={`btn btn-secondary ${loading ? 'loading' : ''}`}
             onClick={generateTitles}
-            disabled={loading || titles.length === 0}
+            disabled={loading || titles.length === 0 || topic.trim() === ''} // Disabled pokud chybí téma nebo tituly
           >
             Generate New Titles
           </button>
@@ -84,7 +99,7 @@ export default function Home() {
       <div className="w-full max-w-xl mt-10">
         <h2 className="text-2xl font-bold mb-4">Scraped Titles:</h2>
         {Array.isArray(titles) && titles.length > 0 ? (
-          <VideoList videos={titles} /> 
+          <VideoList videos={titles} />
         ) : (
           <p>No titles available.</p>
         )}
