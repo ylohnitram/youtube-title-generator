@@ -31,6 +31,17 @@ export async function GET(req) {
 
     const page = await browser.newPage();
 
+    // Blokování nepotřebných zdrojů (obrázky, styly, atd.)
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
+
     // Rychlejší načtení stránky
     await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
