@@ -1,4 +1,3 @@
-import { Browser } from 'puppeteer-core';
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
@@ -6,7 +5,7 @@ export async function GET(req) {
   let channelUrl = searchParams.get('channelUrl');
 
   if (!channelUrl) {
-    return new Response(JSON.stringify({ error: 'Channel URL is required' }), {
+    return new NextResponse(JSON.stringify({ error: 'Channel URL is required' }), {
       status: 400,
     });
   }
@@ -16,7 +15,7 @@ export async function GET(req) {
     channelUrl = `${channelUrl}/videos`;
   }
 
-  let browser: Browser | undefined | null;
+  let browser;
   try {
     if (process.env.NODE_ENV !== 'development') {
       const chromium = require('@sparticuz/chromium');
@@ -72,13 +71,13 @@ export async function GET(req) {
 
     console.log('Scraped videos:', videos);
 
-    return new Response(JSON.stringify(videos), {
+    return new NextResponse(JSON.stringify(videos), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
-    return new Response(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
+    return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
       status: 500,
     });
   } finally {
