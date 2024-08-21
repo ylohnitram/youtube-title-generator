@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import { executablePath } from 'puppeteer';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -10,29 +11,33 @@ export async function GET(req) {
     });
   }
 
-  // Ujisti se, že URL končí na /videos
+  // Ensure URL ends with /videos
   if (!channelUrl.endsWith('/videos')) {
     channelUrl = `${channelUrl}/videos`;
   }
 
   let browser;
   try {
-    // Spuštění Puppeteer
-    browser = await puppeteer.launch({ headless: true });
+    // Launch Puppeteer with a specific executable path for Chromium and necessary flags
+    browser = await puppeteer.launch({
+      headless: true,
+      executablePath: executablePath(), // Use Puppeteer's bundled Chromium
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
     const page = await browser.newPage();
 
-    // Navigace na stránku
+    // Navigate to the page
     await page.goto(channelUrl, { waitUntil: 'networkidle2' });
 
-    // Kliknutí na tlačítko "Accept all" pro cookies, pokud je přítomno
+    // Click on "Accept all" button for cookies if present
     const acceptButtonSelector = 'button[aria-label="Accept all"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
       await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkáme, až se stránka znovu načte
+      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Wait for the page to reload
     }
 
-    // Použití stejného přístupu jako v konzoli
+    // Extract videos data
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
@@ -50,7 +55,7 @@ export async function GET(req) {
         });
       });
 
-      return scrapedVideos.slice(0, 50); // Omezení na top 50 videí
+      return scrapedVideos.slice(0, 50); // Limit to top 50 videos
     });
 
     console.log('Scraped videos:', videos);
