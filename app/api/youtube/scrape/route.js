@@ -21,9 +21,6 @@ export async function GET(req) {
       const chromium = require('@sparticuz/chromium');
       const puppeteer = require('puppeteer-core');
       
-      // Disable WebGL to reduce resource usage
-      chromium.setGraphicsMode = false;
-      
       browser = await puppeteer.launch({
         args: chromium.args,
         defaultViewport: chromium.defaultViewport,
