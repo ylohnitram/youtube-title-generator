@@ -63,7 +63,7 @@ export async function GET(req) {
         });
       });
 
-      return scrapedVideos.slice(0, 50); // Limit to top 50 videos
+      return scrapedVideos.slice(0, 10); // Limit to top 10 videos
     });
 
     console.log('Scraped videos:', videos);
