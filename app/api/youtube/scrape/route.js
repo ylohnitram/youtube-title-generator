@@ -17,35 +17,32 @@ export async function GET(req) {
 
   let browser;
   try {
-    if (process.env.NODE_ENV !== 'development') {
-      const chromium = require('@sparticuz/chromium');
-      const puppeteer = require('puppeteer-core');
-      
-      browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-      });
-    } else {
-      const puppeteer = require('puppeteer');
-      browser = await puppeteer.launch({ headless: 'new' });
-    }
+    const chromium = require('@sparticuz/chromium');
+    const puppeteer = require('puppeteer-core');
+    const executablePath = await chromium.executablePath() || puppeteer.executablePath();
+
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
+      timeout: 30000, // Nastavení maximálního času pro Puppeteer
+    });
 
     const page = await browser.newPage();
 
-    // Navigate to the page
-    await page.goto(channelUrl, { waitUntil: 'networkidle2' });
+    // Zkrácení čekací doby na načtení stránky
+    await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Click on "Accept all" button for cookies if present
+    // Kliknutí na "Accept all" tlačítko pro cookies pokud je přítomno
     const acceptButtonSelector = 'button[aria-label="Accept all"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
       await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Wait for the page to reload
+      await page.waitForTimeout(1000); // Krátké čekání na dokončení akce
     }
 
-    // Extract videos data
+    // Extrakce dat z videí
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
@@ -63,7 +60,7 @@ export async function GET(req) {
         });
       });
 
-      return scrapedVideos.slice(0, 10); // Limit to top 10 videos
+      return scrapedVideos.slice(0, 10); // Omezení na top 10 videí
     });
 
     console.log('Scraped videos:', videos);
