@@ -1,9 +1,8 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 export async function POST(req) {
   const { titles, topic } = await req.json();
@@ -22,18 +21,16 @@ export async function POST(req) {
       Now, based on these titles, create 10 catchy titles for my next video about "${topic}".
     `;
 
-    const messages = [
-      { role: 'system', content: 'You are a helpful assistant that specializes in creating catchy YouTube titles.' },
-      { role: 'user', content: prompt },
-    ];
-
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: 'gpt-4-turbo',
-      messages: messages,
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant that specializes in creating catchy YouTube titles.' },
+        { role: 'user', content: prompt },
+      ],
       max_tokens: 150,
     });
 
-    const generatedTitles = response.data.choices[0].message.content.trim().split('\n').map(title => title.trim());
+    const generatedTitles = response.choices[0].message.content.trim().split('\n').map(title => title.trim());
     return new Response(JSON.stringify(generatedTitles), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
