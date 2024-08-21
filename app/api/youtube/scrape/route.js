@@ -1,5 +1,5 @@
-import puppeteer from 'puppeteer-core';
-import { executablePath } from 'puppeteer';
+import { Browser } from 'puppeteer-core';
+import { NextResponse } from 'next/server';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -16,14 +16,26 @@ export async function GET(req) {
     channelUrl = `${channelUrl}/videos`;
   }
 
-  let browser;
+  let browser: Browser | undefined | null;
   try {
-    // Launch Puppeteer with a specific executable path for Chromium and necessary flags
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: executablePath(), // Use Puppeteer's bundled Chromium
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    if (process.env.NODE_ENV !== 'development') {
+      const chromium = require('@sparticuz/chromium');
+      const puppeteer = require('puppeteer-core');
+      
+      // Disable WebGL to reduce resource usage
+      chromium.setGraphicsMode = false;
+      
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
+    } else {
+      const puppeteer = require('puppeteer');
+      browser = await puppeteer.launch({ headless: 'new' });
+    }
+
     const page = await browser.newPage();
 
     // Navigate to the page
