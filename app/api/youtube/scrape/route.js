@@ -82,8 +82,8 @@ export async function GET(req) {
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
 
-    if (error.name === 'TimeoutError') {
-      console.log('Taking screenshot due to timeout error...');
+    if (browser) {
+      console.log('Taking screenshot due to an error...');
       const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
 
       return new NextResponse(screenshotBuffer, {
