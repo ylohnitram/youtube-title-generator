@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
+import fs from 'fs/promises';
+import path from 'path';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -10,82 +14,78 @@ export async function GET(req) {
     });
   }
 
+  // Ujisti se, že URL končí na /videos
   if (!channelUrl.endsWith('/videos')) {
     channelUrl = `${channelUrl}/videos`;
   }
 
   let browser;
   try {
-    const chromium = require('@sparticuz/chromium');
-    const puppeteer = require('puppeteer-core');
-    const executablePath = await chromium.executablePath() || puppeteer.executablePath();
-
+    // Spuštění Puppeteer s přizpůsobeným Chromiem
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath,
+      executablePath: await chromium.executablePath(),
       headless: chromium.headless,
-      timeout: 30000,
     });
 
     const page = await browser.newPage();
 
-    // Blokování nepotřebných zdrojů
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const resourceType = request.resourceType();
-      if (['image', 'stylesheet', 'font', 'media', 'script', 'xhr'].includes(resourceType)) {
-        request.abort();
-      } else {
-        request.continue();
-      }
-    });
+    // Navigace na stránku
+    await page.goto(channelUrl, { waitUntil: 'networkidle2' });
 
-    await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
-
-    // Kliknutí na "Accept all" tlačítko pro cookies pokud je přítomno
-    const acceptButtonSelector = 'button[aria-label="Accept all"]';
+    // Kliknutí na tlačítko "Přijmout vše" pro cookies, pokud je přítomno
+    const acceptButtonSelector = 'button[aria-label="Přijmout vše"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
       await acceptButton.click();
-      await page.waitForTimeout(1000); // Krátká pauza pro zajištění provedení akce
+      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkejme, až se stránka znovu načte po kliknutí
     }
 
-    // Počkáme na video prvky
-    await page.waitForSelector('a#video-title');
+    // Pořiď screenshot stránky po načtení
+    const screenshotPath = path.join('/tmp', 'screenshot.png');
+    await page.screenshot({ path: screenshotPath, fullPage: true });
 
-    // Extrakce dat z videí, limit na 10 videí
+    // Získání celého HTML stránky
+    const htmlContent = await page.content();
+    const htmlPath = path.join('/tmp', 'page.html');
+    await fs.writeFile(htmlPath, htmlContent);
+
+    // Extrakce videí
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
-      const videoLinks = document.querySelectorAll('a#video-title');
+      const videoLinks = document.querySelectorAll('a#video-title-link');
 
-      videoLinks.forEach((v, index) => {
-        if (index < 10) {  // Limituje počet videí na 10
-          const title = v.title;
-          const url = v.href;
-          const viewsMatch = v.getAttribute('aria-label')?.match(/[\d,]+ views/);
-          const views = viewsMatch ? viewsMatch[0] : 'N/A';
+      videoLinks.forEach(v => {
+        const title = v.title;
+        const url = v.href;
+        const viewsMatch = v.getAttribute('aria-label')?.match(/[\d,]+ views/);
+        const views = viewsMatch ? viewsMatch[0] : 'N/A';
 
-          scrapedVideos.push({
-            title,
-            url,
-            views,
-          });
-        }
+        scrapedVideos.push({
+          title,
+          url,
+          views,
+        });
       });
 
-      return scrapedVideos;
+      return scrapedVideos.slice(0, 10); // Omezení na top 10 videí
     });
 
     console.log('Scraped videos:', videos);
 
-    return new NextResponse(JSON.stringify(videos), {
+    return new NextResponse(JSON.stringify({ videos, screenshotPath, htmlPath }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
-    return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
+
+    // Pořiď screenshot v případě chyby
+    const errorScreenshotPath = path.join('/tmp', 'error-screenshot.png');
+    await page.screenshot({ path: errorScreenshotPath, fullPage: true });
+
+    return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel', errorScreenshotPath }), {
       status: 500,
     });
   } finally {
