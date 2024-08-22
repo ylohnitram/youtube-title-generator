@@ -30,7 +30,7 @@ export async function GET(req) {
 
     const page = await browser.newPage();
 
-    // Block unnecessary resources
+    // Blokování nepotřebných zdrojů
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       const resourceType = request.resourceType();
@@ -43,20 +43,24 @@ export async function GET(req) {
 
     await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Optional: Wait for the video elements to appear
-    await page.waitForSelector('a#video-title'); // Adjust this selector as needed
+    // Kliknutí na "Accept all" tlačítko pro cookies pokud je přítomno
+    const acceptButtonSelector = 'button[aria-label="Accept all"]';
+    const acceptButton = await page.$(acceptButtonSelector);
+    if (acceptButton) {
+      await acceptButton.click();
+      await page.waitForTimeout(1000); // Krátká pauza pro zajištění provedení akce
+    }
 
-    // Log the page content for debugging
-    const pageContent = await page.content();
-    console.log('Page content:', pageContent);
+    // Počkáme na video prvky
+    await page.waitForSelector('a#video-title');
 
-    // Extract video data, limiting to the first 10 videos
+    // Extrakce dat z videí, limit na 10 videí
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title');
 
       videoLinks.forEach((v, index) => {
-        if (index < 10) {
+        if (index < 10) {  // Limituje počet videí na 10
           const title = v.title;
           const url = v.href;
           const viewsMatch = v.getAttribute('aria-label')?.match(/[\d,]+ views/);
