@@ -25,7 +25,6 @@ export async function GET(req) {
   let browser;
   try {
     console.log('Launching Puppeteer...');
-    // Spuštění Puppeteer s přizpůsobeným Chromiem pro Vercel
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -33,10 +32,20 @@ export async function GET(req) {
       headless: chromium.headless,
     });
 
+    if (!browser) {
+      console.error('Failed to launch Puppeteer.');
+      return new NextResponse(JSON.stringify({ error: 'Failed to launch Puppeteer' }), {
+        status: 500,
+      });
+    }
+
+    console.log('Puppeteer launched.');
+
     const page = await browser.newPage();
+    console.log('New page created.');
 
     console.log('Navigating to the channel page...');
-    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 120000 }); // Zvětšení timeoutu na 2 minuty
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 120000 });
 
     console.log('Page loaded. Checking for "Accept all" button...');
     const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label*="Přijmout vše"]';
@@ -44,7 +53,7 @@ export async function GET(req) {
     if (acceptButton) {
       console.log('Accept button found, clicking...');
       await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }); // Zvýšení timeoutu i zde
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
       console.log('Cookies accepted, page reloaded.');
     } else {
       console.log('No accept button found.');
@@ -68,7 +77,7 @@ export async function GET(req) {
         });
       });
 
-      return scrapedVideos.slice(0, 10); // Omezení na top 10 videí
+      return scrapedVideos.slice(0, 10);
     });
 
     console.log('Scraped videos:', videos);
