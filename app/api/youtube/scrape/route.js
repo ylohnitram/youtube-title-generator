@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
-import fs from 'fs/promises';
-import path from 'path';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -34,22 +32,19 @@ export async function GET(req) {
     // Navigace na stránku
     await page.goto(channelUrl, { waitUntil: 'networkidle2' });
 
-    // Kliknutí na tlačítko "Přijmout vše" pro cookies, pokud je přítomno
-    const acceptButtonSelector = 'button[aria-label="Přijmout vše"]';
-    const acceptButton = await page.$(acceptButtonSelector);
-    if (acceptButton) {
-      await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkejme, až se stránka znovu načte po kliknutí
+    // Hledání tlačítka "Accept all" pro cookies v angličtině
+    const acceptButtonSelectorEnglish = 'button[aria-label="Accept all"]';
+    const acceptButtonSelectorCzech = 'button[aria-label="Přijmout vše"]';
+
+    let acceptButton = await page.$(acceptButtonSelectorEnglish);
+    if (!acceptButton) {
+      acceptButton = await page.$(acceptButtonSelectorCzech);
     }
 
-    // Pořiď screenshot stránky po načtení
-    const screenshotPath = path.join('/tmp', 'screenshot.png');
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-
-    // Získání celého HTML stránky
-    const htmlContent = await page.content();
-    const htmlPath = path.join('/tmp', 'page.html');
-    await fs.writeFile(htmlPath, htmlContent);
+    if (acceptButton) {
+      await acceptButton.click();
+      await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    }
 
     // Extrakce videí
     const videos = await page.evaluate(() => {
@@ -74,18 +69,14 @@ export async function GET(req) {
 
     console.log('Scraped videos:', videos);
 
-    return new NextResponse(JSON.stringify({ videos, screenshotPath, htmlPath }), {
+    return new NextResponse(JSON.stringify(videos), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
 
-    // Pořiď screenshot v případě chyby
-    const errorScreenshotPath = path.join('/tmp', 'error-screenshot.png');
-    await page.screenshot({ path: errorScreenshotPath, fullPage: true });
-
-    return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel', errorScreenshotPath }), {
+    return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
       status: 500,
     });
   } finally {
