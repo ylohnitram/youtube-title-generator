@@ -83,17 +83,24 @@ export async function GET(req) {
     console.error('Failed to scrape YouTube channel', error);
 
     if (browser) {
-      const page = await browser.newPage(); // Ensure new page creation for screenshot
-      console.log('Taking screenshot due to an error...');
-      const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
+      try {
+        const page = await browser.newPage(); // Ensure new page creation for screenshot
+        console.log('Taking screenshot due to an error...');
+        const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
 
-      return new NextResponse(screenshotBuffer, {
-        status: 500,
-        headers: {
-          'Content-Type': 'image/png',
-          'Content-Disposition': 'attachment; filename="screenshot.png"',
-        },
-      });
+        return new NextResponse(screenshotBuffer, {
+          status: 500,
+          headers: {
+            'Content-Type': 'image/png',
+            'Content-Disposition': 'attachment; filename="screenshot.png"',
+          },
+        });
+      } catch (screenshotError) {
+        console.error('Failed to take screenshot', screenshotError);
+        return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel and take screenshot' }), {
+          status: 500,
+        });
+      }
     }
 
     return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
