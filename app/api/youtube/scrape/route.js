@@ -10,7 +10,6 @@ export async function GET(req) {
     });
   }
 
-  // Ensure URL ends with /videos
   if (!channelUrl.endsWith('/videos')) {
     channelUrl = `${channelUrl}/videos`;
   }
@@ -26,12 +25,12 @@ export async function GET(req) {
       defaultViewport: chromium.defaultViewport,
       executablePath,
       headless: chromium.headless,
-      timeout: 30000, // Set global timeout for Puppeteer to 30 seconds
+      timeout: 30000,
     });
 
     const page = await browser.newPage();
 
-    // Block unnecessary resources (images, stylesheets, fonts, media)
+    // Block unnecessary resources
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       const resourceType = request.resourceType();
@@ -42,25 +41,22 @@ export async function GET(req) {
       }
     });
 
-    // Load the page faster by reducing wait time and timeout
     await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Click on "Accept all" button for cookies if present
-    const acceptButtonSelector = 'button[aria-label="Accept all"]';
-    const acceptButton = await page.$(acceptButtonSelector);
-    if (acceptButton) {
-      await acceptButton.click();
-      // You might add a small delay to ensure the action is registered
-      await page.waitForTimeout(1000);
-    }
+    // Optional: Wait for the video elements to appear
+    await page.waitForSelector('a#video-title'); // Adjust this selector as needed
+
+    // Log the page content for debugging
+    const pageContent = await page.content();
+    console.log('Page content:', pageContent);
 
     // Extract video data, limiting to the first 10 videos
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
-      const videoLinks = document.querySelectorAll('a#video-title-link');
+      const videoLinks = document.querySelectorAll('a#video-title');
 
       videoLinks.forEach((v, index) => {
-        if (index < 10) {  // Limit the number of videos to 10
+        if (index < 10) {
           const title = v.title;
           const url = v.href;
           const viewsMatch = v.getAttribute('aria-label')?.match(/[\d,]+ views/);
