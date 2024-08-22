@@ -22,7 +22,6 @@ export async function GET(req) {
   console.log(`Adjusted channel URL: ${channelUrl}`);
 
   let browser;
-  let screenshotBuffer;
   try {
     console.log('Launching Puppeteer...');
     browser = await puppeteer.launch({
@@ -38,10 +37,10 @@ export async function GET(req) {
     console.log('New page created.');
 
     console.log('Navigating to the channel page...');
-    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 30000 });  // Prodloužil jsem timeout
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
     console.log('Page loaded. Checking for Accept All button...');
-    const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label="Přijmout vše"]';
+    const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label="Přijmout vše"], button[aria-label="Accept all cookies"], button[aria-label="Přijmout všechny soubory cookie"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
       console.log('Accept button found, clicking...');
@@ -70,7 +69,7 @@ export async function GET(req) {
         });
       });
 
-      return scrapedVideos.slice(0, 10); // Omezení na top 10 videí
+      return scrapedVideos.slice(0, 10); // Limit to top 10 videos
     });
 
     console.log('Scraped videos:', videos);
@@ -84,8 +83,9 @@ export async function GET(req) {
     console.error('Failed to scrape YouTube channel', error);
 
     if (browser) {
+      const page = await browser.newPage(); // Ensure new page creation for screenshot
       console.log('Taking screenshot due to an error...');
-      screenshotBuffer = await page.screenshot({ encoding: 'binary' });
+      const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
 
       return new NextResponse(screenshotBuffer, {
         status: 500,
