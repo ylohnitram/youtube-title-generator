@@ -22,6 +22,7 @@ export async function GET(req) {
   console.log(`Adjusted channel URL: ${channelUrl}`);
 
   let browser;
+  let screenshotBuffer;
   try {
     console.log('Launching Puppeteer...');
     browser = await puppeteer.launch({
@@ -84,10 +85,10 @@ export async function GET(req) {
 
     if (browser) {
       console.log('Taking screenshot due to an error...');
-      const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
+      screenshotBuffer = await page.screenshot({ encoding: 'binary' });
 
       return new NextResponse(screenshotBuffer, {
-        status: 504,
+        status: 500,
         headers: {
           'Content-Type': 'image/png',
           'Content-Disposition': 'attachment; filename="screenshot.png"',
