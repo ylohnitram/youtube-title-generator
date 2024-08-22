@@ -7,18 +7,24 @@ export async function GET(req) {
   let channelUrl = searchParams.get('channelUrl');
 
   if (!channelUrl) {
+    console.error('No channel URL provided.');
     return new NextResponse(JSON.stringify({ error: 'Channel URL is required' }), {
       status: 400,
     });
   }
+
+  console.log(`Starting scrape process for channel URL: ${channelUrl}`);
 
   // Ujisti se, že URL končí na /videos
   if (!channelUrl.endsWith('/videos')) {
     channelUrl = `${channelUrl}/videos`;
   }
 
+  console.log(`Adjusted channel URL: ${channelUrl}`);
+
   let browser;
   try {
+    console.log('Launching Puppeteer...');
     // Spuštění Puppeteer s přizpůsobeným Chromiem pro Vercel
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -29,18 +35,22 @@ export async function GET(req) {
 
     const page = await browser.newPage();
 
-    // Navigace na stránku
+    console.log('Navigating to the channel page...');
     await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Kliknutí na tlačítko "Accept all" pro cookies, pokud je přítomno
+    console.log('Page loaded. Checking for "Accept all" button...');
     const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label*="Přijmout vše"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
+      console.log('Accept button found, clicking...');
       await acceptButton.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkáme, až se stránka znovu načte
+      console.log('Cookies accepted, page reloaded.');
+    } else {
+      console.log('No accept button found.');
     }
 
-    // Použití stejného přístupu jako v konzoli
+    console.log('Extracting video data...');
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
@@ -74,6 +84,7 @@ export async function GET(req) {
     });
   } finally {
     if (browser) {
+      console.log('Closing Puppeteer...');
       await browser.close();
     }
   }
