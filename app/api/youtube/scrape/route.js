@@ -38,7 +38,7 @@ export async function GET(req) {
     console.log('New page created.');
 
     console.log('Navigating to the channel page...');
-    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 120000 });
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 30000 });  // Prodloužil jsem timeout
 
     console.log('Page loaded. Checking for Accept All button...');
     const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label="Přijmout vše"]';
