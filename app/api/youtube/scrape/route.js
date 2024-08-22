@@ -26,39 +26,41 @@ export async function GET(req) {
       defaultViewport: chromium.defaultViewport,
       executablePath,
       headless: chromium.headless,
-      timeout: 30000,
+      timeout: 30000, // Set global timeout for Puppeteer to 30 seconds
     });
 
     const page = await browser.newPage();
 
-    // Blokování nepotřebných zdrojů (obrázky, styly, atd.)
+    // Block unnecessary resources (images, stylesheets, fonts, media)
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       const resourceType = request.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+      if (['image', 'stylesheet', 'font', 'media', 'script', 'xhr'].includes(resourceType)) {
         request.abort();
       } else {
         request.continue();
       }
     });
 
-    // Rychlejší načtení stránky
+    // Load the page faster by reducing wait time and timeout
     await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Kliknutí na "Accept all" tlačítko pro cookies pokud je přítomno
+    // Click on "Accept all" button for cookies if present
     const acceptButtonSelector = 'button[aria-label="Accept all"]';
     const acceptButton = await page.$(acceptButtonSelector);
     if (acceptButton) {
       await acceptButton.click();
+      // You might add a small delay to ensure the action is registered
+      await page.waitForTimeout(1000);
     }
 
-    // Extrakce dat z videí - limit na 10 videí
+    // Extract video data, limiting to the first 10 videos
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
 
       videoLinks.forEach((v, index) => {
-        if (index < 10) {  // Limituje počet videí na 10
+        if (index < 10) {  // Limit the number of videos to 10
           const title = v.title;
           const url = v.href;
           const viewsMatch = v.getAttribute('aria-label')?.match(/[\d,]+ views/);
