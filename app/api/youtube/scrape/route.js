@@ -6,20 +6,24 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   let channelUrl = searchParams.get('channelUrl');
 
+  console.log("Starting scrape process..."); // Log start
+
   if (!channelUrl) {
+    console.error("Channel URL is required");
     return new NextResponse(JSON.stringify({ error: 'Channel URL is required' }), {
       status: 400,
     });
   }
 
-  // Ujisti se, že URL končí na /videos
   if (!channelUrl.endsWith('/videos')) {
     channelUrl = `${channelUrl}/videos`;
   }
 
+  console.log("Channel URL after adjustment: ", channelUrl); // Log adjusted URL
+
   let browser;
   try {
-    // Spuštění Puppeteer s přizpůsobeným Chromiem
+    console.log("Launching Puppeteer...");
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -28,11 +32,23 @@ export async function GET(req) {
     });
 
     const page = await browser.newPage();
+    console.log("Navigating to the channel page...");
 
-    // Navigace na stránku
-    await page.goto(channelUrl, { waitUntil: 'networkidle2' });
+    // Zablokování nepotřebných zdrojů
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      if (resourceType === 'image' || resourceType === 'stylesheet' || resourceType === 'font') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
-    // Hledání tlačítka "Accept all" pro cookies v angličtině
+    await page.goto(channelUrl, { waitUntil: 'domcontentloaded' });
+    console.log("Page loaded");
+
+    // Hledání tlačítka pro cookies
     const acceptButtonSelectorEnglish = 'button[aria-label="Accept all"]';
     const acceptButtonSelectorCzech = 'button[aria-label="Přijmout vše"]';
 
@@ -42,11 +58,16 @@ export async function GET(req) {
     }
 
     if (acceptButton) {
+      console.log("Accept button found, clicking...");
       await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2' });
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+      console.log("Cookies accepted, page reloaded");
+    } else {
+      console.log("No accept button found");
     }
 
     // Extrakce videí
+    console.log("Extracting video data...");
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
@@ -75,7 +96,6 @@ export async function GET(req) {
     });
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
-
     return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
       status: 500,
     });
@@ -83,5 +103,6 @@ export async function GET(req) {
     if (browser) {
       await browser.close();
     }
+    console.log("Puppeteer closed");
   }
 }
