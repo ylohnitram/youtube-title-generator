@@ -36,7 +36,7 @@ export async function GET(req) {
     const page = await browser.newPage();
 
     console.log('Navigating to the channel page...');
-    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 120000 }); // Zvětšení timeoutu na 2 minuty
 
     console.log('Page loaded. Checking for "Accept all" button...');
     const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label*="Přijmout vše"]';
@@ -44,7 +44,7 @@ export async function GET(req) {
     if (acceptButton) {
       console.log('Accept button found, clicking...');
       await acceptButton.click();
-      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkáme, až se stránka znovu načte
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }); // Zvýšení timeoutu i zde
       console.log('Cookies accepted, page reloaded.');
     } else {
       console.log('No accept button found.');
