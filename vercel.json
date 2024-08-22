@@ -1,6 +1,10 @@
 {
   "functions": {
-    "api/**/*.js": {
+    "app/api/youtube/scrape/route.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    },
+    "app/api/youtube/generate-titles/route.js": {
       "memory": 3008,
       "maxDuration": 60
     }
