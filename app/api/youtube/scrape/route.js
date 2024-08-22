@@ -19,7 +19,7 @@ export async function GET(req) {
 
   let browser;
   try {
-    // Spuštění Puppeteer s přizpůsobeným Chromiem
+    // Spuštění Puppeteer s přizpůsobeným Chromiem pro Vercel
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -29,30 +29,18 @@ export async function GET(req) {
 
     const page = await browser.newPage();
 
-    // Zablokování nepotřebných zdrojů
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      if (resourceType === 'image' || resourceType === 'stylesheet' || resourceType === 'font') {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
     // Navigace na stránku
-    await page.goto(channelUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Hledání tlačítka "Accept all" pro cookies
-    const acceptButtonSelector = 'button[aria-label*="Accept"], button[aria-label*="Přijmout"]';
+    // Kliknutí na tlačítko "Accept all" pro cookies, pokud je přítomno
+    const acceptButtonSelector = 'button[aria-label="Accept all"], button[aria-label*="Přijmout vše"]';
     const acceptButton = await page.$(acceptButtonSelector);
-
     if (acceptButton) {
       await acceptButton.click();
-      await page.waitForTimeout(5000);  // Počkáme 5 sekund místo čekání na kompletní navigaci
+      await page.waitForNavigation({ waitUntil: 'networkidle2' }); // Počkáme, až se stránka znovu načte
     }
 
-    // Extrakce videí
+    // Použití stejného přístupu jako v konzoli
     const videos = await page.evaluate(() => {
       const scrapedVideos = [];
       const videoLinks = document.querySelectorAll('a#video-title-link');
@@ -73,13 +61,14 @@ export async function GET(req) {
       return scrapedVideos.slice(0, 10); // Omezení na top 10 videí
     });
 
+    console.log('Scraped videos:', videos);
+
     return new NextResponse(JSON.stringify(videos), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Failed to scrape YouTube channel', error);
-
     return new NextResponse(JSON.stringify({ error: 'Failed to scrape YouTube channel' }), {
       status: 500,
     });
